@@ -1,0 +1,118 @@
+<html>
+
+<head>
+    <title>Incredibly basic cytoscape example</title>
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1, maximum-scale=1">
+
+    <script src="js/cytoscape.min.js"></script>
+    <script src="js/jquery-3.3.1.min.js"></script>
+    <script src="js/dagre.min.js"></script>
+    <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.5.0/cytoscape-dagre.js"></script>
+    <script src="https://unpkg.com/layout-base/layout-base.js"></script>
+    <script src="https://unpkg.com/cose-base/cose-base.js"></script>
+    <script src="js/cytoscape-cose-bilkent.js"></script>
+    <script src="https://unpkg.com/cytoscape-fcose@2.0.0/cytoscape-fcose.js"></script>
+
+</head>
+
+<style>
+    #cy {
+        height: 100%;
+        width: 100%;
+    }
+</style>
+
+<body>
+    <div id="cy"></div>
+    <script>
+        var max_value = 0
+        var max_change_request_rate = 0
+        const MAX_NODE_WIDTH = 50
+        
+        var datasets = $.getJSON("connections_cytoscape.json", function(data) {
+            max_change_request_rate = Math.max(...data.edges.map(o => o.data.change_request_rate))
+            max_value = Math.max(...data.edges.map(o => o.data.value))
+        });
+
+        const getEdgeWidth = function(value) {
+            return Math.floor(4 * value / max_value) + 1;
+        }
+
+        const getEdgeColor = function(value) {
+            if (max_change_request_rate == 0) {
+                return '#888'
+            }
+            var hue = ((1 - value)*120).toString(10);
+            return "hsl(" + hue + ",50%,70%)";
+        }
+
+        const getNodeDiameter = function(node) {
+            return Math.min(
+                MAX_NODE_WIDTH,
+                Math.max(node.outgoers("edge").reduce((acc, curr) => acc + curr.data("value"), 0), 0)
+            )
+        }
+
+        $(function () {
+            var cy = window.cy = cytoscape({
+                container: document.getElementById('cy'),
+                boxSelectionEnabled: false,
+                autounselectify: true,
+                nodeDimensionsIncludeLabels: true,
+                elements: datasets,
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'width': function (node) {
+                                return getNodeDiameter(node);
+                            },
+                            'height': function(node) {
+                                return getNodeDiameter(node);
+                            },
+                            'content': 'data(name)',
+                            'text-valign': 'top',
+                            'text-halign': 'center',
+                            'background-color': '#888',
+                            'color': '#666',
+                            'font-weight': 'bold',
+                            'text-outline-color': '#fff',
+                            'text-outline-width': '2px',
+                            'font-size': '12px',
+                        }
+                    },
+
+                    {
+                        selector: 'edge',
+                        style: {
+                            'curve-style': 'bezier',
+                            'width': function(ele){
+                                return getEdgeWidth(ele.data('value'))
+                            },
+                            'target-arrow-shape': 'triangle',
+                            'line-color': function(ele){
+                                return getEdgeColor(ele.data('change_request_rate'))
+                            },
+                            'target-arrow-color': function(ele){
+                                return getEdgeColor(ele.data('change_request_rate'))
+                            },
+                            'label': 'data(value)',
+                            'color': '#444',
+                            'font-weight': 'bold',
+                            'text-outline-color': '#fff',
+                            'text-outline-width': '1.5px',
+                            'font-size': '8px',
+                            
+                        }
+                    }
+                ],
+                layout: {
+                    name: 'fcose'
+                }
+            });
+        });
+
+    </script>
+</body>
+
+</html>
